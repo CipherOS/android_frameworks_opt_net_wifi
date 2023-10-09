@@ -104,6 +104,7 @@ import android.telephony.PhoneStateListener;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
+import android.util.EventLog;
 import android.util.Log;
 import android.util.MutableBoolean;
 
@@ -189,7 +190,7 @@ public class WifiServiceImpl extends BaseWifiService {
     private final WifiConfigManager mWifiConfigManager;
     private final PasspointManager mPasspointManager;
     private final WifiLog mLog;
-    private WifiStaStateNotifier mWifiStaStateNotifier;
+    private final WifiStaStateNotifier mWifiStaStateNotifier;
 
     /**
      * Verbose logging flag. Toggled by developer options.
@@ -3452,7 +3453,14 @@ public class WifiServiceImpl extends BaseWifiService {
         List<WifiConfiguration> networks = mWifiThreadRunner.call(
                 () -> mWifiConfigManager.getSavedNetworks(Process.WIFI_UID),
                 Collections.emptyList());
+        EventLog.writeEvent(0x534e4554, "231985227", -1,
+                "Remove certs for factory reset");
         for (WifiConfiguration network : networks) {
+            if (network.isEnterprise()) {
+                mWifiThreadRunner.run(() ->
+                        mWifiInjector.getWifiKeyStore()
+                                .removeKeys(network.enterpriseConfig, true));
+            }
             removeNetwork(network.networkId, packageName);
         }
         // Delete all Passpoint configurations
@@ -3463,6 +3471,9 @@ public class WifiServiceImpl extends BaseWifiService {
             removePasspointConfigurationInternal(null, config.getUniqueId());
         }
         mWifiThreadRunner.post(() -> {
+            EventLog.writeEvent(0x534e4554, "241927115", -1,
+                    "Reset SoftApConfiguration to default configuration");
+            mWifiApConfigStore.setApConfiguration(null);
             mPasspointManager.clearAnqpRequestsAndFlushCache();
             mWifiConfigManager.clearUserTemporarilyDisabledList();
             mWifiConfigManager.removeAllEphemeralOrPasspointConfiguredNetworks();
