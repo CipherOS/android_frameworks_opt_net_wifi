@@ -236,6 +236,12 @@ cc_library_shared {
     },
 }
 
+cc_library_headers {
+    name: "libwifi_headers",
+    vendor_available: true,
+    export_include_dirs: ["include"],
+}
+
 // Expose make-built libwifi-hal-<vendor> via wifi_cc_prebuilt_library_static.
 
 // Licenses for imported libwifi-hal-<vendor> libraries
